@@ -1,9 +1,14 @@
 import requests
-from bs4 import BeautifulSoup
 import os
 import datetime
-from progress.bar import FillingCirclesBar
 import fade
+import re
+import concurrent.futures
+from beaupy import select_multiple, confirm
+from progress.bar import FillingCirclesBar
+from bs4 import BeautifulSoup
+
+
 redactor_logo = """
 
 \033[38;2;58;149;93;48;2;71;178;100m▄\033[38;2;1;5;23;48;2;55;140;77m▄\033[38;2;223;213;155;48;2;61;143;77m▄\033[38;2;223;220;167;48;2;64;145;82m▄\033[38;2;221;219;166;48;2;61;145;85m▄\033[38;2;221;217;166;48;2;62;144;87m▄\033[38;2;222;218;166;48;2;58;142;80m▄\033[38;2;221;217;165;48;2;58;139;80m▄\033[38;2;208;202;149;48;2;54;138;79m▄\033[38;2;0;1;23;48;2;54;135;79m▄\033[38;2;0;0;24;48;2;52;135;77m▄\033[38;2;1;0;25;48;2;52;136;79m▄\033[38;2;1;0;23;48;2;52;137;75m▄\033[38;2;94;95;77;48;2;50;138;81m▄\033[38;2;223;220;172;48;2;52;141;83m▄\033[38;2;222;220;175;48;2;46;141;83m▄\033[38;2;222;218;176;48;2;45;139;83m▄\033[38;2;221;216;177;48;2;42;139;82m▄\033[38;2;220;214;176;48;2;44;138;84m▄\033[38;2;219;214;176;48;2;41;138;85m▄\033[38;2;218;214;172;48;2;45;138;83m▄\033[38;2;221;212;167;48;2;46;138;85m▄\033[38;2;223;212;164;48;2;48;138;87m▄\033[38;2;223;212;164;48;2;46;136;84m▄\033[38;2;223;209;164;48;2;50;130;82m▄\033[38;2;66;67;57;48;2;52;128;75m▄\033[38;2;0;0;22;48;2;53;129;78m▄\033[38;2;0;1;23;48;2;54;140;74m▄\033[38;2;1;1;24;48;2;58;143;78m▄\033[38;2;110;161;92;48;2;64;144;81m▄\033[38;2;0;1;21;48;2;65;142;84m▄\033[38;2;0;1;22;48;2;63;142;85m▄\033[38;2;0;1;22;48;2;59;143;81m▄\033[38;2;0;1;22;48;2;56;141;79m▄\033[38;2;0;1;22;48;2;55;140;80m▄\033[38;2;18;18;31;48;2;52;137;81m▄\033[38;2;221;218;112;48;2;52;135;77m▄\033[38;2;222;217;114;48;2;53;135;78m▄\033[38;2;222;214;126;48;2;52;137;78m▄\033[38;2;197;186;110;48;2;50;139;79m▄\033[38;2;198;185;106;48;2;54;143;85m▄\033[38;2;223;211;124;48;2;49;143;86m▄\033[38;2;223;211;130;48;2;47;141;83m▄\033[38;2;223;211;127;48;2;45;139;86m▄\033[38;2;218;208;130;48;2;46;138;85m▄\033[38;2;217;209;134;48;2;43;138;84m▄\033[38;2;217;210;138;48;2;43;138;87m▄\033[38;2;215;210;141;48;2;46;139;83m▄\033[38;2;220;213;147;48;2;49;138;85m▄\033[38;2;221;218;154;48;2;47;137;86m▄\033[38;2;220;216;158;48;2;49;133;85m▄\033[38;2;221;217;159;48;2;54;129;78m▄\033[38;2;221;218;157;48;2;53;130;77m▄\033[38;2;221;218;154;48;2;57;132;76m▄\033[38;2;223;217;158;48;2;59;144;80m▄\033[38;2;223;216;157;48;2;57;140;79m▄\033[38;2;221;213;156;48;2;54;140;79m▄\033[38;2;220;212;156;48;2;55;136;79m▄\033[38;2;220;212;156;48;2;51;136;75m▄\033[38;2;220;212;156;48;2;52;136;78m▄\033[38;2;221;213;159;48;2;53;137;77m▄\033[38;2;220;212;157;48;2;49;138;81m▄\033[38;2;221;215;170;48;2;53;143;85m▄\033[38;2;2;1;18;48;2;48;143;84m▄\033[38;2;0;1;22;48;2;46;140;83m▄\033[38;2;0;1;23;48;2;42;140;83m▄\033[38;2;0;2;22;48;2;44;139;84m▄\033[38;2;72;71;53;48;2;41;141;85m▄\033[38;2;222;225;165;48;2;45;139;81m▄\033[38;2;223;224;163;48;2;46;139;85m▄\033[38;2;222;224;159;48;2;47;138;86m▄\033[38;2;222;223;160;48;2;46;137;85m▄\033[38;2;223;223;160;48;2;51;131;86m▄\033[38;2;108;110;89;48;2;51;128;76m▄\033[38;2;0;0;23;48;2;53;130;81m▄\033[38;2;0;1;26;48;2;55;133;76m▄\033[38;2;3;5;27;48;2;48;109;68m▄\033[38;2;108;135;92;48;2;118;206;137m▄\033[49m  \033[m
@@ -19,13 +24,17 @@ redactor_logo = """
 \033[49;38;2;30;85;93m▀\033[38;2;71;155;130;48;2;81;158;139m▄\033[38;2;81;151;145;48;2;105;144;150m▄\033[38;2;66;103;118;48;2;13;13;29m▄\033[38;2;6;27;54;48;2;4;14;36m▄\033[38;2;30;82;91;48;2;60;99;113m▄\033[38;2;12;56;68;48;2;34;86;93m▄\033[38;2;2;63;75;48;2;30;96;80m▄\033[49;38;2;47;120;89m▀\033[49;38;2;70;160;116m▀\033[49;38;2;70;161;113m▀\033[49;38;2;71;163;111m▀\033[49;38;2;78;172;117m▀\033[49;38;2;70;163;113m▀\033[49;38;2;59;140;106m▀\033[49m                                 \033[49;38;2;62;114;70m▀\033[38;2;35;94;62;48;2;46;99;68m▄\033[38;2;13;61;38;48;2;7;14;33m▄\033[38;2;13;33;41;48;2;3;5;27m▄\033[38;2;10;18;40;48;2;10;10;29m▄\033[38;2;45;64;85;48;2;94;100;121m▄\033[38;2;65;107;103;48;2;10;33;47m▄\033[38;2;68;151;94;48;2;21;91;44m▄\033[49m          \033[49;38;2;54;152;98m▀\033[49;38;2;81;170;126m▀\033[49;38;2;72;154;118m▀\033[49;38;2;77;157;121m▀\033[49;38;2;73;155;115m▀\033[49;38;2;77;162;121m▀\033[49;38;2;64;107;98m▀\033[38;2;3;25;26;48;2;33;75;67m▄\033[38;2;13;58;53;48;2;21;61;68m▄\033[38;2;12;46;46;48;2;7;26;37m▄\033[38;2;58;121;123;48;2;6;33;48m▄\033[38;2;52;98;104;48;2;34;82;93m▄\033[49m  \033[m
 \033[49m  \033[49;38;2;30;89;83m▀\033[38;2;31;67;67;48;2;7;68;58m▄\033[38;2;34;121;123;48;2;12;78;64m▄\033[38;2;13;54;86;48;2;36;94;92m▄\033[49;38;2;2;32;70m▀\033[49m                                           \033[49;38;2;32;96;72m▀\033[38;2;30;75;60;48;2;15;67;42m▄\033[38;2;36;65;64;48;2;10;34;33m▄\033[38;2;32;73;71;48;2;8;31;28m▄\033[38;2;52;133;87;48;2;5;43;31m▄\033[49;38;2;0;39;26m▀\033[49m                  \033[49;38;2;2;26;24m▀\033[38;2;0;16;41;48;2;2;24;35m▄\033[49m    \033[m"""
 print(redactor_logo)
-print(fade.purplepink(""":¯\------ - -   ---  -  -   -   --  ----- - -   ---  -  -   -   --   ------ -/¯:
-:_/                                                                          \_:
+print(
+    fade.purplepink(
+        """:¯\\------ - -   ---  -  -   -   --  ----- - -   ---  -  -   -   --   ------ -/¯:
+:_/                                                                          \\_:
   |          - Downloads all repos for git user                              |
   |          - Hunts for bad werds/optional find/replace w/ [REDACTED]       |
   |                                                                          |
-:¯\_\\-   -   --  --- //\-- - ----- ©1996 23-secKCory - all rights reserved --/¯:
-                  """).strip())
+:¯\\_\\-   -   --  --- //\\-- - ----- ©1996 23-secKCory - all rights reserved --/¯:
+                  """
+    ).strip()
+)
 
 
 def clone_repo(username, repo_name):
@@ -35,64 +44,116 @@ def clone_repo(username, repo_name):
         os.makedirs(repo_dir, exist_ok=True)
         os.system(f"git clone https://github.com/{username}/{repo_name}.git {repo_dir}")
 
+
+def process_file(file_path, term):
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            for _, line in enumerate(f.readlines()):
+                match = re.search(rf"\s+{term}\s+", line)
+                if match:
+                    return (file_path, line.strip())
+    except UnicodeDecodeError:
+        pass
+
+
 def search_repo_for_term(username, repo_name, term):
     findings = []
     repo_dir = f"analysis/{username}/{repo_name}"
     for root, _, files in os.walk(repo_dir):
-        for file in files:
-            if file:  
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            futures = []
+            for file in files:
                 file_path = os.path.join(root, file)
-                try:
-                    with open(file_path, "r", encoding="utf-8") as f:
-                        for idx, line in enumerate(f.readlines()):
-                            if term in line:
-                                findings.append((file_path, line.strip()))
-                except UnicodeDecodeError:
-                    pass
+                future = executor.submit(process_file, file_path, term)
+                futures.append(future)
+            for future in concurrent.futures.as_completed(futures):
+                result = future.result()
+                findings.append(result)
     return findings
 
-def search_for_term(username, search_terms):
-    results = {}
+
+def get_repos(username: str) -> list[str]:
     url = f"https://github.com/{username}?tab=repositories"
     response = requests.get(url)
     soup = BeautifulSoup(response.content, "html.parser")
     repo_links = soup.find_all("a", {"itemprop": "name codeRepository"})
-    
+
+    repo_list: list[str] = list()
+
     for repo_link in repo_links:
         repo_name = repo_link["href"].split("/")[-1]
-        results[repo_name] = {}
-        clone_repo(username, repo_name)
- 
+        repo_list.append(repo_name)
 
-        with FillingCirclesBar(f'\033[0;35mSearching \033[0;34m{repo_name}\033[0;32m', max=len(search_terms), suffix='\033[0;33m%(percent).1f%% - %(eta)ds') as bar:
-       
-            for term in search_terms:
-                findings = search_repo_for_term(username, repo_name, term)
-                if findings:
-                    results[repo_name][term] = findings
-                
-                bar.next()
-        # os.system(f"rm -rf analysis/{username}/{repo_name}")  # Commented out to avoid premature deletion
-    
-    return results
+    return repo_list
+
+
+def generate_report(username):
+    current_date = datetime.datetime.now().strftime("%Y-%m-%d")
+    report_filename = f"reports/{current_date}_{username}.txt"
+    os.makedirs(os.path.dirname(report_filename), exist_ok=True)
+    return report_filename, current_date
+
+
+def search_for_term(selected_repos, username, search_terms):
+    report_filename, current_date = generate_report(username)
+    with open(report_filename, "w") as f:
+        f.write(f"github username: {username}\n")
+        f.write(f"date: {current_date}\n")
+        for repo in selected_repos:
+            clone_repo(username, repo)
+            f.write(f"\nRepo: {repo}\n")
+
+            with FillingCirclesBar(
+                f"\033[0;35mSearching \033[0;34m{repo}\033[0;32m",
+                max=len(search_terms),
+                suffix="\033[0;33m%(percent).1f%% - %(eta)ds",
+            ) as bar:
+                for term in search_terms:
+                    findings = search_repo_for_term(username, repo, term)
+                    if findings:
+                        if not any(finding is not None for finding in findings):
+                            bar.next()
+                            continue
+                        f.write(f"Findings for term '{term}':\n")
+                        for finding in findings:
+                            if finding:
+                                if len(finding) > 0:
+                                    f.write(
+                                        f" - File: {finding[0]}, Content: {finding[1]}\n"
+                                    )
+                    bar.next()
+            # os.system(f"rm -rf analysis/{username}/{repo_name}")  # Commented out to avoid premature deletion
+    return report_filename
+
 
 def main():
-    gitname = "»»» 𝗘𝗻𝘁𝗲𝗿 𝗚𝗶𝘁𝗛𝘂𝗯 𝘂𝘀𝗲𝗿𝗻𝗮𝗺𝗲 ¯\_(ツ)_/¯: "
+    gitname = "»»» 𝗘𝗻𝘁𝗲𝗿 𝗚𝗶𝘁𝗛𝘂𝗯 𝘂𝘀𝗲𝗿𝗻𝗮𝗺𝗲 ¯\\_(ツ)_/¯: "
     gitname = fade.greenblue(gitname)
     gitname = gitname.strip()
     username = input(gitname)
 
-    search_terms_file = "inputs/naughty.txt" #pulled from https://raw.githubusercontent.com/dsojevic/profanity-list/main/en.txt
+    repos = get_repos(username)
+    print(f"repos found: {len(repos)}")
+    full_scan = confirm("do you want to scan across all repos?")
+    if not full_scan:
+        repos = select_multiple(
+            repos,
+            minimal_count=1,
+        )
+
+    search_terms_file = "inputs/naughty.txt"  # pulled from https://raw.githubusercontent.com/dsojevic/profanity-list/main/en.txt
+
+    for r in repos:
+        print(r)
 
     with open(search_terms_file, "r") as f:
         search_terms = f.read().splitlines()
 
-    results = search_for_term(username, search_terms)
+    report_filename = search_for_term(repos, username, search_terms)
 
-    save_report(username, results)
+    # save_report(username, results)
     print("Report generated successfully!")
 
-    report_filename = f"reports/{datetime.datetime.now().strftime('%Y-%m-%d')}_{username}.txt"
     redact_findings(report_filename)
 
     del_question = fade.pinkred("Do you want to delete the user directory? (Y/N): ")
@@ -101,23 +162,11 @@ def main():
     if delete_user_dir == "Y":
         os.system(f"rm -rf analysis/{username}")
 
-def save_report(username, results):
-    current_date = datetime.datetime.now().strftime("%Y-%m-%d")
-    report_filename = f"reports/{current_date}_{username}.txt"
-    os.makedirs(os.path.dirname(report_filename), exist_ok=True)
-
-    with open(report_filename, "w") as f:
-        f.write(f"github username: {username}\n")
-        f.write(f"date: {current_date}\n")
-        for repo_name, term_findings in results.items():
-            f.write(f"\nRepo: {repo_name}\n")
-            for term, findings in term_findings.items():
-                f.write(f"Findings for term '{term}':\n")
-                for finding in findings:
-                    f.write(f" - File: {finding[0]}, Content: {finding[1]}\n")
 
 def redact_findings(report_filename):
-    rep_question = fade.pinkred("Do you want to replace findings with '[REDACTED]'? (Y/N): ")
+    rep_question = fade.pinkred(
+        "Do you want to replace findings with '[REDACTED]'? (Y/N): "
+    )
     rep_question = rep_question.strip()
     replace = input(rep_question).upper()
     if replace == "Y":
@@ -127,6 +176,7 @@ def redact_findings(report_filename):
         content = content.replace("Found term", "[REDACTED] term")
         with open(report_filename, "w") as f:
             f.write(content)
+
 
 if __name__ == "__main__":
     main()
